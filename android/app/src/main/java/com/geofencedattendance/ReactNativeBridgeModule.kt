@@ -15,9 +15,9 @@ class ReactNativeBridgeModule internal constructor(context: ReactApplicationCont
     }
 
     @ReactMethod
-    fun initializeGeoFenceApplication(promise: Promise){
+    fun initializeGeoFenceApplication(lat: Double, long: Double, radius: Int,promise: Promise){
         try {
-            geoFence.initialize();
+            geoFence.initialize(lat,long,radius);
             promise.resolve("INITIALIZED")
         }
         catch (e:Exception){

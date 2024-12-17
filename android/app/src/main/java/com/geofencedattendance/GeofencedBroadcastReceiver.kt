@@ -10,6 +10,9 @@ import com.google.android.gms.location.GeofencingEvent
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         Log.d("broadcastfirst","true")
+        val notificationManager1  = RNNotificationManager(context!!);
+        notificationManager1.createChannel()
+        notificationManager1.send(true);
         val geofencingEvent = intent?.let { GeofencingEvent.fromIntent(it) }
         if(geofencingEvent == null){
             return;
