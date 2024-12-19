@@ -11,7 +11,6 @@ import {
   TextInput,
 } from 'react-native';
 import NMBridge from './NMBridge';
-// import Geolocation from '@react-native-community/geolocation';
 import Geofencing from '@react-native-community/geolocation';
 
 export default () => {

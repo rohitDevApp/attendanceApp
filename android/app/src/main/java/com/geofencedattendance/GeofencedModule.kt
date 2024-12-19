@@ -28,9 +28,17 @@ class GeofencedModule(context: ReactApplicationContext) {
         Log.d("latitude", l.toString())  // Convert `l` to String
         Log.d("longitude", lg.toString())  // Convert `lg` to String
         Log.d("radius", r.toString())
-        val isInitialized = sharedPref.getBoolean(_sharedPrefInitializedKey,false);
-//        if(isInitialized){
-  //          return; // initializing only once
+
+           // Check if already initialized
+        val isInitialized = sharedPref.getBoolean(_sharedPrefInitializedKey, false)
+        if (isInitialized) {
+            Log.d("Geofence", "Already initialized")
+            return
+        }
+
+    //     val isInitialized = sharedPref.getBoolean(_sharedPrefInitializedKey,false);
+    //    if(isInitialized){
+    //        return; // initializing only once
     //    }
         // geoFenceDtoList.add(GeofenceDto(11.1078938, 77.32728, 20))//Office (MSP)
         // geoFenceDtoList.add(GeofenceDto(11.1120701,77.2746059, 70))//Cheran Nagar (Project
@@ -45,44 +53,52 @@ class GeofencedModule(context: ReactApplicationContext) {
         subscribeToLocation()
     }
 
-//    fun getLocation(){
-//        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(_context);
-//        fusedLocationClient.getCurrentLocation(LocationRequest.PRIORITY_HIGH_ACCURACY, object : CancellationToken() {
-//            override fun onCanceledRequested(p0: OnTokenCanceledListener) = CancellationTokenSource().token
-//
-//            override fun isCancellationRequested() = false
-//        })
-//                .addOnSuccessListener { location: Location? ->
-//                        val lat = location.latitude
-//                        val lon = location.longitude
-//                    android.util.Log.d("TAG jff", lat)
-//                    android.util.Log.d("TAG gfgf", lon)
-//
-//
-//                }
-//
-//    }
+
     fun subscribeToLocation(){
         Log.d("subscribe","true")
-        val requestId = UUID.randomUUID().toString();
-      val geoFencedData =   Geofence.Builder()
-            .setRequestId(requestId)
-            // .setCircularRegion(geoFenceDtoList[0].latitude,geoFenceDtoList[0].longitude,geoFenceDtoList[0].radius.toFloat())
-            // .setCircularRegion(geoFenceDtoList[1].latitude,geoFenceDtoList[1].longitude,geoFenceDtoList[1].radius.toFloat())
-            // .setCircularRegion(geoFenceDtoList[2].latitude,geoFenceDtoList[2].longitude,geoFenceDtoList[2].radius.toFloat())
-            // .setCircularRegion(geoFenceDtoList[3].latitude,geoFenceDtoList[3].longitude,geoFenceDtoList[3].radius.toFloat())
-            // .setCircularRegion(geoFenceDtoList[4].latitude,geoFenceDtoList[4].longitude,geoFenceDtoList[4].radius.toFloat())
-            // .setCircularRegion(geoFenceDtoList[5].latitude,geoFenceDtoList[5].longitude,geoFenceDtoList[5].radius.toFloat())
-            .setCircularRegion(geoFenceDtoList[0].latitude,geoFenceDtoList[0].longitude,geoFenceDtoList[0].radius.toFloat())
-              .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
-          .setExpirationDuration(Geofence.NEVER_EXPIRE)
-          //.setNotificationResponsiveness(_notificationResponisveness)
-          .build()
-       geoFencedList.add(geoFencedData);
-        sharedPref.edit()
-            .putString("Location1",requestId)
-            .putBoolean(_sharedPrefInitializedKey,true)
-            .apply();
+//        val requestId = UUID.randomUUID().toString();
+//      val geoFencedData =   Geofence.Builder()
+//            .setRequestId(requestId)
+//            // .setCircularRegion(geoFenceDtoList[0].latitude,geoFenceDtoList[0].longitude,geoFenceDtoList[0].radius.toFloat())
+//            // .setCircularRegion(geoFenceDtoList[1].latitude,geoFenceDtoList[1].longitude,geoFenceDtoList[1].radius.toFloat())
+//            // .setCircularRegion(geoFenceDtoList[2].latitude,geoFenceDtoList[2].longitude,geoFenceDtoList[2].radius.toFloat())
+//            // .setCircularRegion(geoFenceDtoList[3].latitude,geoFenceDtoList[3].longitude,geoFenceDtoList[3].radius.toFloat())
+//            // .setCircularRegion(geoFenceDtoList[4].latitude,geoFenceDtoList[4].longitude,geoFenceDtoList[4].radius.toFloat())
+//            // .setCircularRegion(geoFenceDtoList[5].latitude,geoFenceDtoList[5].longitude,geoFenceDtoList[5].radius.toFloat())
+//            .setCircularRegion(geoFenceDtoList[0].latitude,geoFenceDtoList[0].longitude,geoFenceDtoList[0].radius.toFloat())
+//              .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
+//          .setExpirationDuration(Geofence.NEVER_EXPIRE)
+//          //.setNotificationResponsiveness(_notificationResponisveness)
+//          .build()
+//       geoFencedList.add(geoFencedData);
+//        sharedPref.edit()
+//            .putString("Location1",requestId)
+//            .putBoolean(_sharedPrefInitializedKey,true)
+//            .apply();
+        
+        for (geoFenceDto in geoFenceDtoList) {
+            val requestId = UUID.randomUUID().toString()
+            val geoFence = Geofence.Builder()
+                    .setRequestId(requestId)
+                    .setCircularRegion(
+                            geoFenceDto.latitude,
+                            geoFenceDto.longitude,
+                            geoFenceDto.radius.toFloat()
+                    )
+                    .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
+                    .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                    .setNotificationResponsiveness(_notificationResponisveness)
+                    .build()
+
+            geoFencedList.add(geoFence)
+
+            // Save request ID in shared preferences
+            sharedPref.edit()
+                    .putString("Location_$requestId", requestId)
+                    .putBoolean(_sharedPrefInitializedKey, true)
+                    .apply()
+        }
+           
         getGeofencingRequest()
     }
 
