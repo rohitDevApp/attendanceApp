@@ -12,10 +12,11 @@ const SaveUserLocation = () => {
         // Add the event listener
         const subscription = GeofenceEventEmitter.addListener('GeofenceEvent', (eventData) => {
             console.log('Geofence Event Data:', eventData);
-            Alert.alert('Yes');
+            const data = eventData.split('|');
+            console.log(data);
             Alert.alert(
                 'Geofence Event Data Saved',
-                `Event: ${eventData.event}\nLatitude: ${eventData.latitude}\nLongitude: ${eventData.longitude}`
+                `Event: ${data[0]}\nLatitude: ${data[1]}\nLongitude: ${data[2]}\nDate: ${data[3]}\nTime : ${data[4]}\nAddress: ${data[5]}`
             );
         });
 

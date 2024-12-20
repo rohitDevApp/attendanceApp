@@ -1,10 +1,9 @@
 package com.geofencedattendance
-import GeofencedModule
+import android.app.ActivityManager
 import android.util.Log
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.android.gms.location.Geofence
@@ -14,14 +13,11 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.location.Geocoder
 import android.location.Address
-import com.google.android.gms.location.GeofencingClient
 
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
-//        val appInstance = MainApplication.getInstance()
-//        val reactContext = appInstance?.currentReactContext
         Log.d("broadcastfirst","true")
         val notificationManager1  = RNNotificationManager(context!!);
         notificationManager1.createChannel()
@@ -53,9 +49,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
             if (latitude != null && longitude != null) {
                 lateinit var fullAddress: String
-                Log.d("GeofenceBroadcastReceiver", "Lat: $latitude, Long: $longitude")
-                    Log.d("AllThings" ,triggeringLocation.toString());
-                // Using Geocoder to get the address from latitude and longitude
+
                 val geocoder = Geocoder(context, Locale.getDefault())
                 val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)
                 if (!addresses.isNullOrEmpty()) {
@@ -69,7 +63,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                     Log.d("LocationAddress", fullAddress)
                 }
                 // Send event to React Native.
-                sendEventToReactNative(context!!, geofenceTransition, latitude, longitude ,currentDate,currentTime ,fullAddress)
+                sendEventToReactNative(context, geofenceTransition, latitude, longitude ,currentDate,currentTime ,fullAddress)
             }
         }
 
@@ -85,55 +79,58 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         val editor = preferences.edit()
         editor.putString("lastEvent", "$eventType|$latitude|$longitude|$currentDate|$currentTime|$fullAddress")
         editor.apply()
-        Log.d("GeofenceEventsData", "Event saved successfully: $eventType|$latitude|$longitude")
-
     }
         //Send Data to React Native
     private fun sendEventToReactNative(context: Context, transitionType: Int, latitude: Double, longitude: Double ,currentDate:String,currentTime:String ,fullAddress:String){
-           val eventType =  if(transitionType == Geofence.GEOFENCE_TRANSITION_ENTER){
+            val reactContext  = context.applicationContext as ReactContext
+            val appState = (context.applicationContext as MainApplication).getAppState()
+            val eventType =  if(transitionType == Geofence.GEOFENCE_TRANSITION_ENTER){
                 "geofenceEnter"
             }else{
                 "geofenceExit"
             }
 
-            //Create Object 
-            val eventData = mapOf(
-                "event" to eventType,
-                "latitude" to latitude,
-                "longitude" to longitude,
-                "currentDate" to currentDate,
-                "currentTime" to currentTime,
-                "fullAddress" to fullAddress
-            )
-            Log.d("lastEvent", "$eventType|$latitude|$longitude")
-            val reactContext  = context.applicationContext as? ReactContext
-
-            // Get the app state (whether the app is in foreground or background)
-            val appState = (context.applicationContext as MainApplication).getAppState()
-
-            // Log the app state
             Log.d("BroadcastReceiver", "App State: $appState")
-
-            // Handle the broadcast based on the app state
-            if (appState == "FOREGROUND" && reactContext != null) {
-                    Log.d("GeofenceEvent", "App is in the foreground")
-                    reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-                        .emit("GeofenceEvent", eventData)
-
-            } else {
-                Log.d("GeofenceEvent", "App is in the Kill Mode & Background")
+            val data = "${eventType}|${latitude}|${longitude}|${currentDate}|${currentTime}|${fullAddress}"
+            if(isAppOnForeground(context) || isAppOnBackground(context)){
+                Log.d("AppRunInMode","Foreground or Background is running")
+                reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                    .emit("GeofenceEvent", data)
+            }else{
+                Log.d("AppRunInMode","Kill Mode is running")
                 saveEventToPreferences(context, eventType, latitude, longitude ,currentDate,currentTime ,fullAddress);
             }
+
     }
 
-    //getContext
-    private fun getReactContext(context: Context): ReactContext? {
-        val application = context.applicationContext as? MainApplication
-        val reactInstanceManager = application?.reactNativeHost?.reactInstanceManager
-
-        if (reactInstanceManager != null && reactInstanceManager.currentReactContext == null) {
-            reactInstanceManager.createReactContextInBackground()
+    //Foreground
+    private fun isAppOnForeground(context: Context): Boolean {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val appProcesses = activityManager.runningAppProcesses ?: return false
+        val packageName: String = context.getPackageName()
+        for (appProcess in appProcesses) {
+            if (appProcess.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND &&
+                appProcess.processName == packageName
+            ) {
+                return true
+            }
         }
-        return reactInstanceManager?.currentReactContext
+        return false
     }
+
+    //Background
+    private fun isAppOnBackground(context: Context): Boolean {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val appProcesses = activityManager.runningAppProcesses ?: return false
+        val packageName: String = context.getPackageName()
+        for (appProcess in appProcesses) {
+            if (appProcess.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED &&
+                appProcess.processName == packageName
+            ) {
+                return true
+            }
+        }
+        return false
+    }
+
 }

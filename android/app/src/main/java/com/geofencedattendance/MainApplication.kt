@@ -22,10 +22,8 @@ class MainApplication : Application(), ReactApplication {
     private var appState: String = "UNKNOWN"
     //Context
     companion object {
-        private var instance: MainApplication? = null
-        fun getInstance(): MainApplication? {
-            return instance
-        }
+        private lateinit var instance: MainApplication
+        fun getContext(): Context = instance.applicationContext
     }
 
 
