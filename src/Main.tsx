@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import NMBridge from './NMBridge';
 import Geofencing from '@react-native-community/geolocation';
+import SaveUserLocation from './SaveUserLocation';
 
 export default () => {
   const [loaded, setLoaded] = useState(true);
@@ -169,6 +170,7 @@ export default () => {
       <TouchableOpacity style={styles.geofencebutton} onPress={handleSubmit}>
         <Text>Get geofence</Text>
       </TouchableOpacity>
+      <SaveUserLocation />
     </View >
   );
 };

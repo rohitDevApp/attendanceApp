@@ -1,6 +1,7 @@
 package com.geofencedattendance
 
 import GeofencedModule
+import android.util.Log
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -23,5 +24,11 @@ class ReactNativeBridgeModule internal constructor(context: ReactApplicationCont
         catch (e:Exception){
             promise.reject(e)
         }
+    }
+
+    @ReactMethod
+    fun getSavedGeofenceEventFromBridge(promise: Promise) {
+        Log.d("RNBridgeCallSave","Yes")
+       geoFence.getSavedGeofenceEvent(promise)
     }
     }
