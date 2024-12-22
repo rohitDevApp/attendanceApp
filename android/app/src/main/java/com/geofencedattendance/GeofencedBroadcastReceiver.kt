@@ -13,15 +13,17 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.location.Geocoder
 import android.location.Address
+import com.facebook.react.HeadlessJsTaskService
+import okhttp3.internal.immutableListOf
 
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
-        Log.d("broadcastfirst","true")
-        val notificationManager1  = RNNotificationManager(context!!);
-        notificationManager1.createChannel()
-        notificationManager1.send(true);
+        Log.d("broadcastfirst","true");
+        if(context == null){
+            return;
+        }
         val geofencingEvent = intent?.let { GeofencingEvent.fromIntent(it) }
         if(geofencingEvent == null){
             return;
@@ -38,38 +40,35 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         }
 
         //Save login into Database
-        if(geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER ||  geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT){
-                val triggeringLocation = geofencingEvent.triggeringLocation
-                val latitude = triggeringLocation?.latitude
-                val longitude = triggeringLocation?.longitude
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-                val currentDate = dateFormat.format(Date())
-                val currentTime = timeFormat.format(Date())
+        val triggeringLocation = geofencingEvent.triggeringLocation
+        val latitude = triggeringLocation?.latitude
+        val longitude = triggeringLocation?.longitude
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+        val currentDate = dateFormat.format(Date())
+        val currentTime = timeFormat.format(Date())
 
-            if (latitude != null && longitude != null) {
-                lateinit var fullAddress: String
+        if (latitude != null && longitude != null) {
+            var fullAddress = "Not Found. GeoLocation from Address"
+            val geocoder = Geocoder(context, Locale.getDefault())
+            val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)
+            if (!addresses.isNullOrEmpty()) {
+                val address: Address = addresses[0]
+                val city = address.locality ?: ""
+                val state = address.adminArea ?: ""
+                val country = address.countryName ?: ""
+                val addressLine = address.getAddressLine(0) ?: ""
 
-                val geocoder = Geocoder(context, Locale.getDefault())
-                val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)
-                if (!addresses.isNullOrEmpty()) {
-                    val address: Address = addresses[0]
-                    val city = address.locality ?: ""
-                    val state = address.adminArea ?: ""
-                    val country = address.countryName ?: ""
-                    val addressLine = address.getAddressLine(0) ?: ""
-
-                     fullAddress = "$addressLine, $city, $state, $country"
-                    Log.d("LocationAddress", fullAddress)
-                }
-                // Send event to React Native.
-                sendEventToReactNative(context, geofenceTransition, latitude, longitude ,currentDate,currentTime ,fullAddress)
+                fullAddress = "$addressLine, $city, $state, $country"
+                Log.d("LocationAddress", fullAddress)
             }
+            // Send event to React Native.
+            sendEventToReactNative(context, geofenceTransition, latitude, longitude ,currentDate,currentTime ,fullAddress)
         }
-
-        val notificationManager  = RNNotificationManager(context!!);
+        val notificationManager  = RNNotificationManager(context);
         notificationManager.createChannel()
         notificationManager.send(geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER);
+        HeadlessJsTaskService.acquireWakeLockNow(context)
     }
 
     //Save Event To Shared Preference when in kill mode
@@ -82,34 +81,35 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
     }
         //Send Data to React Native
     private fun sendEventToReactNative(context: Context, transitionType: Int, latitude: Double, longitude: Double ,currentDate:String,currentTime:String ,fullAddress:String){
-            val reactContext  = context.applicationContext as ReactContext
-            val appState = (context.applicationContext as MainApplication).getAppState()
-            val eventType =  if(transitionType == Geofence.GEOFENCE_TRANSITION_ENTER){
-                "geofenceEnter"
-            }else{
-                "geofenceExit"
-            }
-
-            Log.d("BroadcastReceiver", "App State: $appState")
-            val data = "${eventType}|${latitude}|${longitude}|${currentDate}|${currentTime}|${fullAddress}"
-            if(isAppOnForeground(context) || isAppOnBackground(context)){
-                Log.d("AppRunInMode","Foreground or Background is running")
-                reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-                    .emit("GeofenceEvent", data)
-            }else{
-                Log.d("AppRunInMode","Kill Mode is running")
-                saveEventToPreferences(context, eventType, latitude, longitude ,currentDate,currentTime ,fullAddress);
-            }
-
+        val eventType =  if(transitionType == Geofence.GEOFENCE_TRANSITION_ENTER){
+            "geofenceEnter"
+        }else{
+            "geofenceExit"
+        }
+        val data = "${eventType}|${latitude}|${longitude}|${currentDate}|${currentTime}|${fullAddress}"
+        if(isAppReachable(context)){
+            Log.d("AppRunInMode","Foreground or Background is running")
+            val headlessJSIntent = Intent(context, HeadlessTaskService::class.java)
+            headlessJSIntent.putExtra("event", data)
+            context.startService(headlessJSIntent)
+        }else{
+            Log.d("AppRunInMode","Kill Mode is running")
+            saveEventToPreferences(context, eventType, latitude, longitude ,currentDate,currentTime ,fullAddress);
+        }
     }
 
     //Foreground
-    private fun isAppOnForeground(context: Context): Boolean {
+    private fun isAppReachable(context: Context): Boolean {
+        val interestImportances = immutableListOf<Int>(
+            ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND,
+            ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED
+        )
+
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val appProcesses = activityManager.runningAppProcesses ?: return false
         val packageName: String = context.getPackageName()
         for (appProcess in appProcesses) {
-            if (appProcess.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND &&
+            if (appProcess.importance in interestImportances &&
                 appProcess.processName == packageName
             ) {
                 return true
@@ -117,20 +117,4 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         }
         return false
     }
-
-    //Background
-    private fun isAppOnBackground(context: Context): Boolean {
-        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        val appProcesses = activityManager.runningAppProcesses ?: return false
-        val packageName: String = context.getPackageName()
-        for (appProcess in appProcesses) {
-            if (appProcess.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED &&
-                appProcess.processName == packageName
-            ) {
-                return true
-            }
-        }
-        return false
-    }
-
 }
