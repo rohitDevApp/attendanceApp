@@ -10,7 +10,7 @@ class HeadlessTaskService : HeadlessJsTaskService() {
             HeadlessJsTaskConfig(
                 "OnAttendanceLogChange",
                 Arguments.fromBundle(it),
-                0, // timeout for the task
+                5000, // timeout for the task
                 true // optional: defines whether or not the task is allowed in foreground.
                 // Default is false
             )
