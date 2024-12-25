@@ -15,6 +15,8 @@ import android.location.Geocoder
 import android.location.Address
 import com.facebook.react.HeadlessJsTaskService
 import okhttp3.internal.immutableListOf
+import org.json.JSONArray
+import org.json.JSONObject
 
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
@@ -67,7 +69,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         }
         val notificationManager  = RNNotificationManager(context);
         notificationManager.createChannel()
-        notificationManager.send(geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER);
+//        notificationManager.send(geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER);
         HeadlessJsTaskService.acquireWakeLockNow(context)
     }
 
@@ -76,7 +78,22 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         Log.d("SharedStarting..", "Event saved successfully: $eventType|$latitude|$longitude")
         val preferences = context.getSharedPreferences("GeofenceEvents", Context.MODE_PRIVATE)
         val editor = preferences.edit()
-        editor.putString("lastEvent", "$eventType|$latitude|$longitude|$currentDate|$currentTime|$fullAddress")
+
+        val existingEventsJson = preferences.getString("allEvents", "[]")
+        val eventsArray = JSONArray(existingEventsJson)
+        val newEvent = JSONObject()
+
+        newEvent.put("eventType", eventType)
+        newEvent.put("latitude", latitude)
+        newEvent.put("longitude", longitude)
+        newEvent.put("currentDate", currentDate)
+        newEvent.put("currentTime", currentTime)
+        newEvent.put("fullAddress", fullAddress)
+
+        // Append the new event to the array
+        eventsArray.put(newEvent)
+        editor.putString("allEvents", eventsArray.toString())
+      //  editor.putString("lastEvent", "$eventType|$latitude|$longitude|$currentDate|$currentTime|$fullAddress")
         editor.apply()
     }
         //Send Data to React Native

@@ -3,8 +3,12 @@ package com.geofencedattendance
 //import com.facebook.react.bridge.Callback
 import GeofencedModule
 import android.app.ActivityManager
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -44,6 +48,44 @@ class ReactNativeBridgeModule internal constructor(context: ReactApplicationCont
        geoFence.getSavedGeofenceEvent(promise)
     }
 
+    @ReactMethod
+    fun clearSavedGeofenceEvents(promise: Promise) {
+        Log.d("RNBridgeCallSaveForClear","Yes")
+        geoFence.clearSavedGeofenceEvents(promise)
+    }
+
+    @ReactMethod
+    fun stopGeofencing(promise: Promise) {
+        Log.d("RNBridgeCallSaveForClear","Yes")
+        geoFence.stopGeofencing(promise)
+    }
+
+    @ReactMethod
+    fun showNotification (message:String){
+        val notificationManager1  = RNNotificationManager(_context);
+        notificationManager1.createChannel()
+        // Create an Intent that will open the app when the notification is clicked
+        val intent = Intent(_context, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            _context,
+            12345,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val builder = NotificationCompat.Builder(_context, "GEOFENCE_CHANNEL")
+            .setContentTitle("Geofence Alert")
+            .setSmallIcon(android.R.drawable.ic_dialog_map)
+            .setContentText(message)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+
+        val notificationManager =
+            _context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager;
+
+        notificationManager.notify(1, builder.build())
+    }
+
 
     fun runEveryFiveSeconds() {
         CoroutineScope(Dispatchers.Main).launch {
@@ -64,14 +106,15 @@ class ReactNativeBridgeModule internal constructor(context: ReactApplicationCont
 //                }else{
 //                    Log.d("AppRunInMode","Kill Mode is running")
 //                }
-                val notificationManager1  = RNNotificationManager(_context);
-                notificationManager1.createChannel()
-                notificationManager1.send(true);
+//                val notificationManager1  = RNNotificationManager(_context);
+//                notificationManager1.createChannel()
+//                notificationManager1.send(true);
+//
+//                val notificationManager  = RNNotificationManager(_context!!);
+//                notificationManager.createChannel()
+//                notificationManager.send(true)
+//                Log.d("Notification Trigger" ,"true")
 
-                val notificationManager  = RNNotificationManager(_context!!);
-                notificationManager.createChannel()
-                notificationManager.send(true)
-                Log.d("Notification Trigger" ,"true")
             }
         }
     }

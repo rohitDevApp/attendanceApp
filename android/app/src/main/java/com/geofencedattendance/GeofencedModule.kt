@@ -132,18 +132,72 @@ class GeofencedModule(context: ReactApplicationContext) {
     @ReactMethod
     fun getSavedGeofenceEvent(promise: Promise) {
         try {
-            Log.d("GeoFencedCallSave","Yes")
+            Log.d("GeoFencedCallSave", "Yes")
             val context = _context
             val preferences = context.getSharedPreferences("GeofenceEvents", Context.MODE_PRIVATE)
-            val lastEvent = preferences.getString("lastEvent", null)
-            if(lastEvent.toString().isNotEmpty()){
-                Log.d("DataFromCurrentSharedFile",lastEvent.toString());
+            val allEvents = preferences.getString("allEvents", null)
+
+            if (!allEvents.isNullOrEmpty()) {
+                Log.d("DataFromCurrentSharedFile", allEvents)
+
+                // Create a WritableMap to return the data
                 val mapResult: WritableMap = Arguments.createMap()
-                mapResult.putString("userData", lastEvent.toString())
-                promise.resolve(mapResult);
+                mapResult.putString("userData", allEvents)
+
+                // Resolve the promise with the map
+                promise.resolve(mapResult)
             }
-        }catch(err: Exception){
-            promise.reject("NO_EVENT", "No saved geofence events found",err)
+//            else {
+//                Log.d("DataSharedFrom", "No events found")
+//                promise.reject("NO_EVENT", "No saved geofence events found")
+//            }
+        } catch (err: Exception) {
+            Log.e("GeoFencedCallError", "Error retrieving geofence events", err)
+            promise.reject("NO_EVENT", "No saved geofence events found", err)
         }
     }
+
+    @ReactMethod
+    fun clearSavedGeofenceEvents(promise: Promise) {
+        try {
+            Log.d("GeoFencedClear", "Clearing saved geofence events")
+            val context = _context
+            val preferences = context.getSharedPreferences("GeofenceEvents", Context.MODE_PRIVATE)
+            val editor = preferences.edit()
+
+            // Clear the specific key or all data
+            editor.remove("allEvents") // Removes only the geofence events
+            editor.apply()
+
+            // Optionally, resolve a success message
+            promise.resolve("Geofence events cleared successfully")
+        } catch (err: Exception) {
+            Log.e("GeoFencedClearError", "Error clearing geofence events", err)
+            promise.reject("CLEAR_ERROR", "Failed to clear geofence events", err)
+        }
+    }
+
+    @ReactMethod
+    fun stopGeofencing(promise: Promise) {
+        try {
+            geoFencingClient = LocationServices.getGeofencingClient(_context);
+            Log.d("GeoFencedStop", "Stopping all geofence")
+            // Remove all geofence using the geofencePendingIntent
+            geoFencingClient?.removeGeofences(geofencePendingIntent)?.run {
+                addOnSuccessListener {
+                    Log.d("GeoFencedStop", "All geofence stopped successfully")
+                    promise.resolve("Geofencing stopped successfully")
+                }
+                addOnFailureListener { e ->
+                    Log.e("GeoFencedStopError", "Error stopping geofence", e)
+                    promise.reject("STOP_ERROR", "Failed to stop geofencing", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("GeoFencedStopException", "Exception stopping geofencing", e)
+            promise.reject("STOP_EXCEPTION", "Exception occurred while stopping geofencing", e)
+        }
+    }
+
+
 }

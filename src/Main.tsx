@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Text,
   View,
@@ -13,26 +13,31 @@ import {
 import NMBridge from './NMBridge';
 import Geofencing from '@react-native-community/geolocation';
 import SaveUserLocation from './SaveUserLocation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default () => {
   const [loaded, setLoaded] = useState(true);
   const [radius, setRadius] = useState(20);
   const [error, setError] = useState('');
+  const [showAction, setShowAction] = useState<string | null>('1');
   const [currentLocation, setCurrentLocation] = useState({
     lat: 0,
     long: 0,
   });
 
-  // useEffect(() => {
-  //   if (Platform.OS === 'ios') {
-  //     Alert.alert('Not supported', 'We are not currently supporting iOS');
-  //     return;
-  //   }
 
-  //   // _initialize();
-  //   //  _initialize(currentLocation.lat, currentLocation.long, 20);
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, []);
+  useEffect(() => {
+    const setAction = async () => {
+      const isSet = await AsyncStorage.getItem('isSet');
+      console.log(isSet, 'intiallevel');
+      if (isSet === null) {
+        await AsyncStorage.setItem('isSet', '1');
+        setShowAction('1');
+      }
+      // setShowAction(isSet);
+    };
+    setAction();
+  }, []);
 
   if (Platform.OS === 'ios') {
     return null;
@@ -149,28 +154,30 @@ export default () => {
   return (
     <View
       style={styles.container}>
-      <Text>App is initialized for attendance. Well Done 🫡</Text>
-      <TouchableOpacity style={styles.button} onPress={getCurrentLocation}>
-        <Text>Get Location</Text>
-      </TouchableOpacity>
+      <SaveUserLocation onPress={(act) => setShowAction(act)} />
+      {showAction === '1' &&
+        <>
+          <Text>App is initialized for attendance. Well Done 🫡</Text>
+          <TouchableOpacity style={styles.button} onPress={getCurrentLocation}>
+            <Text>Get Location</Text>
+          </TouchableOpacity>
 
-      <View>
-        <Text>Longitude: {currentLocation.lat}</Text>
-        <Text>Longitude: {currentLocation.long}</Text>
-      </View>
+          <View>
+            <Text>Longitude: {currentLocation.lat}</Text>
+            <Text>Longitude: {currentLocation.long}</Text>
+          </View>
 
-      <Text style={styles.label}>Enter Radius:</Text>
-      <TextInput
-        style={[styles.input, error && styles.errorInput]}
-        placeholder="Enter radius"
-        keyboardType="numeric"
-        value={radius.toString()}
-        onChangeText={handleRadiusChange}
-      />
-      <TouchableOpacity style={styles.geofencebutton} onPress={handleSubmit}>
-        <Text>Get geofence</Text>
-      </TouchableOpacity>
-      <SaveUserLocation />
+          <Text style={styles.label}>Enter Radius:</Text>
+          <TextInput
+            style={[styles.input, error && styles.errorInput]}
+            placeholder="Enter radius"
+            keyboardType="numeric"
+            value={radius.toString()}
+            onChangeText={handleRadiusChange}
+          />
+          <TouchableOpacity style={styles.geofencebutton} onPress={handleSubmit}>
+            <Text>Get geofence</Text>
+          </TouchableOpacity></>}
     </View >
   );
 };
