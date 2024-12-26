@@ -19,7 +19,6 @@ import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import java.util.UUID
-import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.geofencedattendance.MainActivity
 import com.geofencedattendance.RNNotificationManager
 import com.google.android.gms.location.LocationCallback
@@ -34,8 +33,8 @@ class GeofencedModule(context: ReactApplicationContext) {
     val sharedPref = context.getSharedPreferences("locationSharedPref", Context.MODE_PRIVATE)
     val _sharedPrefInitializedKey = "initialized";
     fun initialize(l: Double, lg: Double, r: Int){
-//        getLocation()
-        Log.d("Initialized","true")
+////        getLocation()
+//        Log.d("Initialized","true")
         Log.d("latitude", l.toString())
         Log.d("longitude", lg.toString())  // Convert `lg` to String
         Log.d("radius", r.toString())
@@ -54,20 +53,21 @@ class GeofencedModule(context: ReactApplicationContext) {
         // geoFenceDtoList.add(GeofenceDto(11.1078938, 77.32728, 20))//Office (MSP)
         // geoFenceDtoList.add(GeofenceDto(11.1120701,77.2746059, 70))//Cheran Nagar (Project
         // geoFenceDtoList.add(GeofenceDto(11.1015774, 77.3873048, 100))//Mahesh home
-        // geoFenceDtoList.add(GeofenceDto(28.41276922144451, 77.04381797704207, 50))//centocode office
+//         geoFenceDtoList.add(GeofenceDto(28.4135873, 77.0425976, 50))//centocode office
 //         geoFenceDtoList.add(GeofenceDto(28.490043, 77.024092, 20))//Shantanu
 //         geoFenceDtoList.add(GeofenceDto(28.4135431,77.0426261, 20))//Karthik home
         geoFenceDtoList.add(GeofenceDto(l,lg, r))//Dynamics
         Log.d("AddeddGeofecned", "true")
 //        geoFenceDtoList.add(GeofenceDto(28.419934,77.0365344, 100))
         geoFencingClient = LocationServices.getGeofencingClient(_context);
-        Log.d("PerfectSolution", "true")
+        Log.d("PerfectSolution", geoFencingClient.toString())
         subscribeToLocation()
     }
 
 
     fun subscribeToLocation(){
         Log.d("subscribe","true")
+        Log.d("GeoFencedDtoList",geoFenceDtoList.toString())
         for (geoFenceDto in geoFenceDtoList) {
             val requestId = UUID.randomUUID().toString()
             val geoFence = Geofence.Builder()
@@ -90,18 +90,18 @@ class GeofencedModule(context: ReactApplicationContext) {
                     .putBoolean(_sharedPrefInitializedKey, true)
                     .apply()
         }
-
+        Log.d("GeogeoFencedList",geoFencedList.toString())
         getGeofencingRequest()
     }
 
 
     private val geofencePendingIntent: PendingIntent by lazy {
+        Log.d("PendingCalling","yes")
         val intent = Intent(_context, GeofenceBroadcastReceiver::class.java)
+        Log.d("PendingMidCalling","yes")
         // We use FLAG_UPDATE_CURRENT so that we get the same pending intent back when calling
-        // addGeofences() and removeGeofences().
-        PendingIntent.getBroadcast(_context, 43853, intent,
+        PendingIntent.getBroadcast(_context, 12345, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-
         )
     }
 
@@ -143,13 +143,10 @@ class GeofencedModule(context: ReactApplicationContext) {
         }
     }
 
-    // Expose a method for React Native to fetch the saved event
     @ReactMethod
     fun getSavedGeofenceEvent(promise: Promise) {
         try {
-            Log.d("GeoFencedCallSave", "Yes")
-            val context = _context
-            val preferences = context.getSharedPreferences("GeofenceEvents", Context.MODE_PRIVATE)
+            val preferences = _context.getSharedPreferences("GeofenceEvents", Context.MODE_PRIVATE)
             val allEvents = preferences.getString("allEvents", null)
 
             if (!allEvents.isNullOrEmpty()) {
@@ -224,9 +221,11 @@ class GeofencedModule(context: ReactApplicationContext) {
             val sharedPref = _context.getSharedPreferences("locationSharedPref", Context.MODE_PRIVATE)
             val allEntries = sharedPref.all
             val geofenceIds = mutableListOf<String>()
-            for ((value) in allEntries) {
-                if (value.startsWith("Location_") && value is String) {
+            val geoPrefIds = mutableListOf<String>()
+            for ((key,value) in allEntries) {
+                if (key.startsWith("Location_") && value is String) {
                     geofenceIds.add(value)
+                    geoPrefIds.add(key)
                 }
             }
 
@@ -243,11 +242,17 @@ class GeofencedModule(context: ReactApplicationContext) {
                 addOnSuccessListener {
                     //  clear the stopped geofence from shared preferences
                     val editor = sharedPref.edit()
-                    for (id in geofenceIds) {
+                    for (id in geoPrefIds) {
                         editor.remove(id.toString())
                     }
                     editor.apply()
 
+                    // Remove the corresponding geofences from geoFencedList
+                    geoFenceDtoList.clear()
+                    geoFencedList.clear()
+
+                    Log.d("GeogeoFencedStopList",geoFencedList.toString())
+                    Log.d("GeoFencedStopDtoList",geoFenceDtoList.toString())
                     Log.d("GeoFencedStop", "All geofence stopped successfully")
                     promise.resolve("Geofencing stopped successfully")
                 }
@@ -272,20 +277,20 @@ class GeofencedModule(context: ReactApplicationContext) {
         val notificationManager1  = RNNotificationManager(_context);
         notificationManager1.createChannel()
         // Create an Intent that will open the app when the notification is clicked
-        val intent = Intent(_context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            _context,
-            12345,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+//        val intent = Intent(_context, MainActivity::class.java)
+//        val pendingIntent = PendingIntent.getActivity(
+//            _context,
+//            54321,
+//            intent,
+//            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+//        )
         val builder = NotificationCompat.Builder(_context, "GEOFENCE_CHANNEL")
             .setContentTitle("Geofence Alert")
             .setSmallIcon(android.R.drawable.ic_dialog_map)
             .setContentText(message)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
+//            .setContentIntent(pendingIntent)
 
         val notificationManager =
             _context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager;

@@ -20,7 +20,7 @@ const { ReactNativeBridge } = NativeModules;
 
 export default () => {
   const [loaded, setLoaded] = useState(true);
-  const [radius, setRadius] = useState(20);
+  const [radius, setRadius] = useState(50);
   const [error, setError] = useState('');
   const [showAction, setShowAction] = useState<string | null>('1');
   const [currentLocation, setCurrentLocation] = useState({

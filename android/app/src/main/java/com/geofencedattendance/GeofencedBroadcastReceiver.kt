@@ -1,4 +1,5 @@
 package com.geofencedattendance
+import SaveDataWorker
 import android.app.ActivityManager
 import android.util.Log
 import android.content.BroadcastReceiver
@@ -21,6 +22,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import androidx.work.Data
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkRequest
 
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
@@ -68,6 +73,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                 fullAddress = "$addressLine, $city, $state, $country"
                 Log.d("LocationAddress", fullAddress)
             }
+
             // Send event to React Native.
             sendEventToReactNative(context, geofenceTransition, latitude, longitude ,currentDate,currentTime ,fullAddress)
         }
@@ -107,6 +113,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         }else{
             "geofenceExit"
         }
+            Log.d("transitionType",transitionType.toString())
         val data = "${eventType}|${latitude}|${longitude}|${currentDate}|${currentTime}|${fullAddress}"
         if(isAppReachable(context)){
             Log.d("AppRunInMode","Foreground or Background is running")
@@ -114,9 +121,25 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
             headlessJSIntent.putExtra("event", data)
             context.startService(headlessJSIntent)
         }else{
+            // Prepare input data for WorkManager
+            val inputData = Data.Builder()
+                .putString("eventType", eventType)
+                .putDouble("latitude", latitude)
+                .putDouble("longitude", longitude)
+                .putString("currentDate", currentDate)
+                .putString("currentTime", currentTime)
+                .putString("fullAddress", fullAddress)
+                .build()
+
             Log.d("AppRunInMode","Kill Mode is running")
-//            saveEventToPreferences(context, eventType, latitude, longitude ,currentDate,currentTime ,fullAddress);
-            savedDataAPI(eventType, latitude, longitude, currentDate, currentTime, fullAddress)
+
+            // Create a WorkRequest
+            val saveDataWorkRequest: WorkRequest = OneTimeWorkRequestBuilder<SaveDataWorker>()
+                .setInputData(inputData)
+                .build()
+
+            // Enqueue the WorkRequest
+            WorkManager.getInstance(context).enqueue(saveDataWorkRequest)
         }
     }
 
@@ -161,7 +184,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         }.start()
     }
 
-    //Foreground
+    //check Foreground & background
     private fun isAppReachable(context: Context): Boolean {
         val interestImportances = immutableListOf<Int>(
             ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND,
