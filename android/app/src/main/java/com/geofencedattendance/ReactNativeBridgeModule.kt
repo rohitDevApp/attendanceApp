@@ -61,29 +61,15 @@ class ReactNativeBridgeModule internal constructor(context: ReactApplicationCont
     }
 
     @ReactMethod
+    fun getAllLocationData(promise: Promise){
+        Log.d("getAllLocationData","Yes")
+        geoFence.getAllLocationData(promise)
+    }
+
+    @ReactMethod
     fun showNotification (message:String){
-        val notificationManager1  = RNNotificationManager(_context);
-        notificationManager1.createChannel()
-        // Create an Intent that will open the app when the notification is clicked
-        val intent = Intent(_context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            _context,
-            12345,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val builder = NotificationCompat.Builder(_context, "GEOFENCE_CHANNEL")
-            .setContentTitle("Geofence Alert")
-            .setSmallIcon(android.R.drawable.ic_dialog_map)
-            .setContentText(message)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
-
-        val notificationManager =
-            _context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager;
-
-        notificationManager.notify(1, builder.build())
+        Log.d("getAllLocationData","Yes")
+        geoFence.sendNotify(message)
     }
 
 

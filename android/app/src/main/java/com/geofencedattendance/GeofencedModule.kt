@@ -1,10 +1,12 @@
 import android.Manifest
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -18,6 +20,10 @@ import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import java.util.UUID
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.geofencedattendance.MainActivity
+import com.geofencedattendance.RNNotificationManager
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationResult
 
 class GeofencedModule(context: ReactApplicationContext) {
     lateinit var geoFencingClient: GeofencingClient
@@ -30,7 +36,7 @@ class GeofencedModule(context: ReactApplicationContext) {
     fun initialize(l: Double, lg: Double, r: Int){
 //        getLocation()
         Log.d("Initialized","true")
-        Log.d("latitude", l.toString())  // Convert `l` to String
+        Log.d("latitude", l.toString())
         Log.d("longitude", lg.toString())  // Convert `lg` to String
         Log.d("radius", r.toString())
 
@@ -128,6 +134,15 @@ class GeofencedModule(context: ReactApplicationContext) {
         Log.d("GeofecingRequest completed","Last")
     }
 
+    // Define the LocationCallback
+    private val stopLocationTrack = object : LocationCallback() {
+        override fun onLocationResult(locationResult: LocationResult) {
+            super.onLocationResult(locationResult)
+            val location = locationResult.lastLocation
+            Log.d("Location", "Latitude: ${location?.latitude}, Longitude: ${location?.longitude}")
+        }
+    }
+
     // Expose a method for React Native to fetch the saved event
     @ReactMethod
     fun getSavedGeofenceEvent(promise: Promise) {
@@ -158,6 +173,29 @@ class GeofencedModule(context: ReactApplicationContext) {
     }
 
     @ReactMethod
+    fun getAllLocationData(promise: Promise) {
+        try {
+            val sharedPref = _context.getSharedPreferences("locationSharedPref", Context.MODE_PRIVATE)
+            val allEntries = sharedPref.all
+
+            val locationData = mutableMapOf<String, String>()
+
+            // Filter keys that start with "Location_" and collect their values
+            for ((key, value) in allEntries) {
+                if (key.startsWith("Location_") && value is String) {
+                    locationData[key] = value
+                }
+            }
+
+            // Return the data as a JSON-like map to JavaScript
+            promise.resolve(locationData.toString())
+        } catch (e: Exception) {
+            Log.e("GetAllLocationDataError", "Error fetching location data", e)
+            promise.reject("FETCH_ERROR", "Failed to fetch location data", e)
+        }
+    }
+
+    @ReactMethod
     fun clearSavedGeofenceEvents(promise: Promise) {
         try {
             Log.d("GeoFencedClear", "Clearing saved geofence events")
@@ -181,10 +219,35 @@ class GeofencedModule(context: ReactApplicationContext) {
     fun stopGeofencing(promise: Promise) {
         try {
             geoFencingClient = LocationServices.getGeofencingClient(_context);
-            Log.d("GeoFencedStop", "Stopping all geofence")
-            // Remove all geofence using the geofencePendingIntent
-            geoFencingClient?.removeGeofences(geofencePendingIntent)?.run {
+
+            //getShared Prefer Data from Location
+            val sharedPref = _context.getSharedPreferences("locationSharedPref", Context.MODE_PRIVATE)
+            val allEntries = sharedPref.all
+            val geofenceIds = mutableListOf<String>()
+            for ((value) in allEntries) {
+                if (value.startsWith("Location_") && value is String) {
+                    geofenceIds.add(value)
+                }
+            }
+
+            if (geofenceIds.isEmpty()) {
+                Log.d("GeoFencedStop", "No geofence to stop")
+                promise.resolve("Empty")
+                return
+            }
+
+            Log.d("GeoFencedStop", "Stopping all geofence $geofenceIds")
+
+            // Remove all geofence using the geofenceIds
+            geoFencingClient?.removeGeofences(geofenceIds)?.run {
                 addOnSuccessListener {
+                    //  clear the stopped geofence from shared preferences
+                    val editor = sharedPref.edit()
+                    for (id in geofenceIds) {
+                        editor.remove(id.toString())
+                    }
+                    editor.apply()
+
                     Log.d("GeoFencedStop", "All geofence stopped successfully")
                     promise.resolve("Geofencing stopped successfully")
                 }
@@ -193,10 +256,41 @@ class GeofencedModule(context: ReactApplicationContext) {
                     promise.reject("STOP_ERROR", "Failed to stop geofencing", e)
                 }
             }
+
+            // Stop location updates
+            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(_context)
+            fusedLocationClient.removeLocationUpdates(stopLocationTrack)
+
         } catch (e: Exception) {
             Log.e("GeoFencedStopException", "Exception stopping geofencing", e)
             promise.reject("STOP_EXCEPTION", "Exception occurred while stopping geofencing", e)
         }
+    }
+
+    @ReactMethod
+    fun sendNotify(message:String){
+        val notificationManager1  = RNNotificationManager(_context);
+        notificationManager1.createChannel()
+        // Create an Intent that will open the app when the notification is clicked
+        val intent = Intent(_context, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            _context,
+            12345,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val builder = NotificationCompat.Builder(_context, "GEOFENCE_CHANNEL")
+            .setContentTitle("Geofence Alert")
+            .setSmallIcon(android.R.drawable.ic_dialog_map)
+            .setContentText(message)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+
+        val notificationManager =
+            _context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager;
+
+        notificationManager.notify(1, builder.build())
     }
 
 

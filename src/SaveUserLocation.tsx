@@ -88,11 +88,15 @@ const SaveUserLocation = ({ onPress }: { onPress: (act: string) => void; }) => {
         } else {
             try {
                 const res = await ReactNativeBridge.stopGeofencing();
-                console.log(res, 'stop response');
+                console.log(res, res === 'Empty', 'stop response');
                 setIsSet('0');
                 await AsyncStorage.setItem('isSet', '0');
                 onPress('0');
-                ReactNativeBridge.showNotification('Geofenced Successfully stoped.');
+                if (res === 'Empty') {
+                    ReactNativeBridge.showNotification('No geofence to stop.');
+                } else {
+                    ReactNativeBridge.showNotification('Geofenced Successfully stoped.');
+                }
             } catch (err) {
                 console.log('Error when we toggle Set & isSet', err);
                 ReactNativeBridge.showNotification('Geofenced not Successfully stoped.');

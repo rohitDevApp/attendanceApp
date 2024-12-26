@@ -5,6 +5,7 @@ import {NativeModules} from 'react-native';
 const {ReactNativeBridge} = NativeModules;
 
 module.exports = async (geolocationData: any) => {
+  console.log(geolocationData, 'data');
   const isSet = await AsyncStorage.getItem('isSet');
   if (isSet === '1') {
     console.log(geolocationData, 'geolocation');

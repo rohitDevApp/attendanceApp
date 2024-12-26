@@ -14,9 +14,13 @@ import java.util.*
 import android.location.Geocoder
 import android.location.Address
 import com.facebook.react.HeadlessJsTaskService
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import okhttp3.internal.immutableListOf
 import org.json.JSONArray
 import org.json.JSONObject
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
@@ -111,8 +115,50 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
             context.startService(headlessJSIntent)
         }else{
             Log.d("AppRunInMode","Kill Mode is running")
-            saveEventToPreferences(context, eventType, latitude, longitude ,currentDate,currentTime ,fullAddress);
+//            saveEventToPreferences(context, eventType, latitude, longitude ,currentDate,currentTime ,fullAddress);
+            savedDataAPI(eventType, latitude, longitude, currentDate, currentTime, fullAddress)
         }
+    }
+
+    // Call API Call
+    private fun savedDataAPI(eventType: String, latitude: Double, longitude: Double, currentDate: String, currentTime: String, fullAddress: String) {
+        // Create the OkHttpClient instance
+        val client = OkHttpClient()
+        val url = "https://app.cheransoftwares.com/api/app/staff_attendance/clock_store"
+
+        // Prepare JSON data for the request body
+        val jsonBody = """
+        {
+            "employee_id": "abide1234",
+            "latitude": $latitude,
+            "longitude": $longitude,
+            "address": "$fullAddress"
+        }
+    """.trimIndent()
+
+        // Create the RequestBody with the JSON data
+        val body = jsonBody.toRequestBody("application/json".toMediaType())
+
+        // Build the request
+        val request = Request.Builder()
+            .url(url)
+            .post(body)
+            .build()
+
+        // Execute the API request in a background thread
+        Thread {
+            try {
+                val response = client.newCall(request).execute()
+                Log.d("Response In Kill mode",response.toString())
+                if (response.isSuccessful) {
+                    Log.d("API_CALL", "Successfully sent data to API")
+                } else {
+                    Log.d("API_CALL", "API call failed: ${response.message}")
+                }
+            } catch (e: Exception) {
+                Log.e("API_CALL", "Error during API call", e)
+            }
+        }.start()
     }
 
     //Foreground

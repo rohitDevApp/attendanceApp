@@ -9,11 +9,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  NativeModules,
 } from 'react-native';
 import NMBridge from './NMBridge';
 import Geofencing from '@react-native-community/geolocation';
 import SaveUserLocation from './SaveUserLocation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const { ReactNativeBridge } = NativeModules;
 
 export default () => {
   const [loaded, setLoaded] = useState(true);
@@ -29,12 +32,15 @@ export default () => {
   useEffect(() => {
     const setAction = async () => {
       const isSet = await AsyncStorage.getItem('isSet');
+      const getData = await ReactNativeBridge.getAllLocationData();
+      console.log(getData, 'Data Location');
       console.log(isSet, 'intiallevel');
       if (isSet === null) {
         await AsyncStorage.setItem('isSet', '1');
         setShowAction('1');
+      } else {
+        setShowAction(isSet);
       }
-      // setShowAction(isSet);
     };
     setAction();
   }, []);
