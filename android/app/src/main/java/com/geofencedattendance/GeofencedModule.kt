@@ -4,14 +4,17 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.health.connect.datatypes.ExerciseRoute.Location
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.WritableMap
+import com.facebook.react.uimanager.style.ComputedBorderRadius
 import com.geofencedattendance.GeofenceBroadcastReceiver
 import com.geofencedattendance.GeofenceDto
 import com.google.android.gms.location.Geofence
@@ -21,53 +24,51 @@ import com.google.android.gms.location.LocationServices
 import java.util.UUID
 import com.geofencedattendance.MainActivity
 import com.geofencedattendance.RNNotificationManager
+import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationResult
+import com.facebook.react.bridge.Callback
+import android.app.Activity
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
+import com.google.android.gms.tasks.OnSuccessListener
 
 class GeofencedModule(context: ReactApplicationContext) {
     lateinit var geoFencingClient: GeofencingClient
+    private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+
     val _context: ReactApplicationContext = context;
     var geoFencedList : MutableList<Geofence> = mutableListOf()
     var geoFenceDtoList = mutableListOf<GeofenceDto>()
     val _notificationResponisveness = 1 * 60 * 1000;
     val sharedPref = context.getSharedPreferences("locationSharedPref", Context.MODE_PRIVATE)
     val _sharedPrefInitializedKey = "initialized";
+
     fun initialize(l: Double, lg: Double, r: Int){
-////        getLocation()
-//        Log.d("Initialized","true")
-        Log.d("latitude", l.toString())
-        Log.d("longitude", lg.toString())  // Convert `lg` to String
-        Log.d("radius", r.toString())
+        fusedLocationProviderClient=LocationServices.getFusedLocationProviderClient(_context);
 
-           // Check if already initialized
-        val isInitialized = sharedPref.getBoolean(_sharedPrefInitializedKey, false)
-//        if (isInitialized) {
-//            Log.d("Geofence", "Already initialized")
-//            return
-//        }
+        if (ActivityCompat.checkSelfPermission(
+                _context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                _context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            throw IllegalStateException("Permission to access fine location is not granted.");
+        }
 
-    //     val isInitialized = sharedPref.getBoolean(_sharedPrefInitializedKey,false);
-//        if(isInitialized){
-//            return; // initializing only once
-//        }
-        // geoFenceDtoList.add(GeofenceDto(11.1078938, 77.32728, 20))//Office (MSP)
-        // geoFenceDtoList.add(GeofenceDto(11.1120701,77.2746059, 70))//Cheran Nagar (Project
-        // geoFenceDtoList.add(GeofenceDto(11.1015774, 77.3873048, 100))//Mahesh home
-//         geoFenceDtoList.add(GeofenceDto(28.4135873, 77.0425976, 50))//centocode office
-//         geoFenceDtoList.add(GeofenceDto(28.490043, 77.024092, 20))//Shantanu
-//         geoFenceDtoList.add(GeofenceDto(28.4135431,77.0426261, 20))//Karthik home
-        geoFenceDtoList.add(GeofenceDto(l,lg, r))//Dynamics
-        Log.d("AddeddGeofecned", "true")
-//        geoFenceDtoList.add(GeofenceDto(28.419934,77.0365344, 100))
-        geoFencingClient = LocationServices.getGeofencingClient(_context);
-        Log.d("PerfectSolution", geoFencingClient.toString())
-        subscribeToLocation()
+        fusedLocationProviderClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY,CancellationTokenSource().token).addOnCompleteListener({
+            val lat = it.result.latitude;
+            val long = it.result.longitude;
+            geoFenceDtoList.add(GeofenceDto(lat,long, r))
+            geoFencingClient = LocationServices.getGeofencingClient(_context);
+            subscribeToLocation()
+        })
     }
 
 
     fun subscribeToLocation(){
-        Log.d("subscribe","true")
-        Log.d("GeoFencedDtoList",geoFenceDtoList.toString())
         for (geoFenceDto in geoFenceDtoList) {
             val requestId = UUID.randomUUID().toString()
             val geoFence = Geofence.Builder()
@@ -80,6 +81,7 @@ class GeofencedModule(context: ReactApplicationContext) {
                     .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
                     .setExpirationDuration(Geofence.NEVER_EXPIRE)
                     .setNotificationResponsiveness(_notificationResponisveness)
+                    .setLoiteringDelay(10000)
                     .build()
 
             geoFencedList.add(geoFence)
@@ -90,15 +92,12 @@ class GeofencedModule(context: ReactApplicationContext) {
                     .putBoolean(_sharedPrefInitializedKey, true)
                     .apply()
         }
-        Log.d("GeogeoFencedList",geoFencedList.toString())
         getGeofencingRequest()
     }
 
 
     private val geofencePendingIntent: PendingIntent by lazy {
-        Log.d("PendingCalling","yes")
         val intent = Intent(_context, GeofenceBroadcastReceiver::class.java)
-        Log.d("PendingMidCalling","yes")
         // We use FLAG_UPDATE_CURRENT so that we get the same pending intent back when calling
         PendingIntent.getBroadcast(_context, 12345, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
@@ -106,7 +105,6 @@ class GeofencedModule(context: ReactApplicationContext) {
     }
 
     private fun getGeofencingRequest() {
-        Log.d("GeofecingRequesting...","true")
         val geoFencingRequest = GeofencingRequest.Builder().apply {
             setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER or GeofencingRequest.INITIAL_TRIGGER_EXIT)
             addGeofences(geoFencedList)
@@ -119,19 +117,22 @@ class GeofencedModule(context: ReactApplicationContext) {
         ) {
             throw IllegalStateException("Permission to access fine location is not granted.");
         }
-        Log.d("Enable Location is Done completed","Location")
 
-        geoFencingClient.addGeofences(geoFencingRequest, geofencePendingIntent).run {
-            addOnSuccessListener {
-                Log.d("Geofence add Successfully ","Done")
+        try{
+            geoFencingClient.addGeofences(geoFencingRequest, geofencePendingIntent).run {
+                addOnSuccessListener {
+                    Log.d("Geofence add Successfully ","Done")
+                }
+                addOnFailureListener { e ->
+                    e.printStackTrace()
+                    Log.d("GeoFencedModule",e.toString())
+                    throw e
+                }
             }
-            addOnFailureListener { e ->
-                e.printStackTrace()
-                Log.d("GeoFencedModule",e.toString())
-                throw e
-            }
+        }catch (err:Exception){
+            Log.e("ErrorWhengGeoFenceReques",err.toString())
+            sendNotify("Error")
         }
-        Log.d("GeofecingRequest completed","Last")
     }
 
     // Define the LocationCallback
@@ -150,19 +151,13 @@ class GeofencedModule(context: ReactApplicationContext) {
             val allEvents = preferences.getString("allEvents", null)
 
             if (!allEvents.isNullOrEmpty()) {
-                Log.d("DataFromCurrentSharedFile", allEvents)
 
-                // Create a WritableMap to return the data
                 val mapResult: WritableMap = Arguments.createMap()
                 mapResult.putString("userData", allEvents)
 
                 // Resolve the promise with the map
                 promise.resolve(mapResult)
             }
-//            else {
-//                Log.d("DataSharedFrom", "No events found")
-//                promise.reject("NO_EVENT", "No saved geofence events found")
-//            }
         } catch (err: Exception) {
             Log.e("GeoFencedCallError", "Error retrieving geofence events", err)
             promise.reject("NO_EVENT", "No saved geofence events found", err)
@@ -174,7 +169,6 @@ class GeofencedModule(context: ReactApplicationContext) {
         try {
             val sharedPref = _context.getSharedPreferences("locationSharedPref", Context.MODE_PRIVATE)
             val allEntries = sharedPref.all
-
             val locationData = mutableMapOf<String, String>()
 
             // Filter keys that start with "Location_" and collect their values
@@ -195,7 +189,6 @@ class GeofencedModule(context: ReactApplicationContext) {
     @ReactMethod
     fun clearSavedGeofenceEvents(promise: Promise) {
         try {
-            Log.d("GeoFencedClear", "Clearing saved geofence events")
             val context = _context
             val preferences = context.getSharedPreferences("GeofenceEvents", Context.MODE_PRIVATE)
             val editor = preferences.edit()
@@ -230,12 +223,9 @@ class GeofencedModule(context: ReactApplicationContext) {
             }
 
             if (geofenceIds.isEmpty()) {
-                Log.d("GeoFencedStop", "No geofence to stop")
                 promise.resolve("Empty")
                 return
             }
-
-            Log.d("GeoFencedStop", "Stopping all geofence $geofenceIds")
 
             // Remove all geofence using the geofenceIds
             geoFencingClient?.removeGeofences(geofenceIds)?.run {
@@ -251,9 +241,6 @@ class GeofencedModule(context: ReactApplicationContext) {
                     geoFenceDtoList.clear()
                     geoFencedList.clear()
 
-                    Log.d("GeogeoFencedStopList",geoFencedList.toString())
-                    Log.d("GeoFencedStopDtoList",geoFenceDtoList.toString())
-                    Log.d("GeoFencedStop", "All geofence stopped successfully")
                     promise.resolve("Geofencing stopped successfully")
                 }
                 addOnFailureListener { e ->
@@ -264,7 +251,11 @@ class GeofencedModule(context: ReactApplicationContext) {
 
             // Stop location updates
             val fusedLocationClient = LocationServices.getFusedLocationProviderClient(_context)
-            fusedLocationClient.removeLocationUpdates(stopLocationTrack)
+            try {
+                fusedLocationClient.removeLocationUpdates(stopLocationTrack)
+            }catch (err:Exception){
+                Log.e("FusedError","true");
+            }
 
         } catch (e: Exception) {
             Log.e("GeoFencedStopException", "Exception stopping geofencing", e)
@@ -297,6 +288,7 @@ class GeofencedModule(context: ReactApplicationContext) {
 
         notificationManager.notify(1, builder.build())
     }
+
 
 
 }

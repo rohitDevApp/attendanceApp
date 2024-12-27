@@ -65,6 +65,7 @@ const SaveUserLocation = ({ onPress }: { onPress: (act: string) => void; }) => {
                             });
                         } else {
                             console.log('empty Data');
+                            ReactNativeBridge.showNotification('Attendance Not Update Failed.');
                         }
 
                     }

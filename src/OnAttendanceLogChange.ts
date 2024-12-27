@@ -11,9 +11,9 @@ module.exports = async (geolocationData: any) => {
     console.log(geolocationData, 'geolocation');
     const data = geolocationData?.event?.split('|');
     console.log(data);
-    console.log(
-      `Event: ${data[0]}\nLatitude: ${data[1]}\nLongitude: ${data[2]}\nDate: ${data[3]}\nTime : ${data[4]}\nAddress: ${data[5]}`,
-    );
+    // console.log(
+    //   `Event: ${data[0]}\nLatitude: ${data[1]}\nLongitude: ${data[2]}\nDate: ${data[3]}\nTime : ${data[4]}\nAddress: ${data[5]}`,
+    // );
     const res = await axios.post(
       'https://app.cheransoftwares.com/api/app/staff_attendance/clock_store',
       {

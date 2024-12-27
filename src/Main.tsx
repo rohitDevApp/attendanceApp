@@ -12,7 +12,7 @@ import {
   NativeModules,
 } from 'react-native';
 import NMBridge from './NMBridge';
-import Geofencing from '@react-native-community/geolocation';
+import geolocation from '@react-native-community/geolocation';
 import SaveUserLocation from './SaveUserLocation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -20,7 +20,7 @@ const { ReactNativeBridge } = NativeModules;
 
 export default () => {
   const [loaded, setLoaded] = useState(true);
-  const [radius, setRadius] = useState(50);
+  const [radius, setRadius] = useState(100);
   const [error, setError] = useState('');
   const [showAction, setShowAction] = useState<string | null>('1');
   const [currentLocation, setCurrentLocation] = useState({
@@ -133,7 +133,7 @@ export default () => {
   //get current location
   const getCurrentLocation = async () => {
     try {
-      Geofencing.getCurrentPosition(info => {
+      geolocation.getCurrentPosition(info => {
         const { coords: { latitude, longitude } } = info;
         setCurrentLocation({ lat: latitude, long: longitude });
       },);
